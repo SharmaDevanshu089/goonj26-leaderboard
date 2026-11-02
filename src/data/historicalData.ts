@@ -1,0 +1,233 @@
+import { TournamentEdition } from '../types/leaderboard';
+
+export const HISTORICAL_EDITIONS: Record<string, TournamentEdition> = {
+  goonj25: {
+    id: 'goonj25',
+    name: "Goonj '25 (Archives)",
+    shortName: "Goonj '25",
+    year: 2025,
+    isLive: false,
+    themeTitle: "Echoes of Glory",
+    lastUpdated: '10 Nov 2025, 10:30:00 PM IST',
+    championBatchName: 'Centurions (MBBS 2021)',
+    runnerUpBatchName: 'Valiants (MBBS 2022)',
+    teams: [
+      {
+        id: 'h25-centurions',
+        name: 'Centurions',
+        subname: 'MBBS Batch 2021 (4th Year)',
+        crest: '⚔️',
+        tagline: 'Overall Champions Goonj 2025',
+        score: 940,
+        rank: 1,
+        prevRank: 1,
+        gold: 10,
+        silver: 6,
+        bronze: 4,
+        sportsScore: 520,
+        culturalScore: 260,
+        literaryScore: 160
+      },
+      {
+        id: 'h25-valiants',
+        name: 'Valiants',
+        subname: 'MBBS Batch 2022 (3rd Year)',
+        crest: '🛡️',
+        tagline: 'Runners-Up Goonj 2025',
+        score: 875,
+        rank: 2,
+        prevRank: 2,
+        gold: 7,
+        silver: 8,
+        bronze: 5,
+        sportsScore: 460,
+        culturalScore: 265,
+        literaryScore: 150
+      },
+      {
+        id: 'h25-invincibles',
+        name: 'Invincibles',
+        subname: 'MBBS Batch 2023 (2nd Year)',
+        crest: '⚡',
+        tagline: 'Bronze Podium Finish',
+        score: 710,
+        rank: 3,
+        prevRank: 3,
+        gold: 5,
+        silver: 6,
+        bronze: 5,
+        sportsScore: 370,
+        culturalScore: 210,
+        literaryScore: 130
+      },
+      {
+        id: 'h25-titans',
+        name: 'Titans',
+        subname: 'MBBS Batch 2024 (1st Year Freshers)',
+        crest: '🏛️',
+        tagline: 'Debut Sensations',
+        score: 540,
+        rank: 4,
+        prevRank: 4,
+        gold: 3,
+        silver: 4,
+        bronze: 4,
+        sportsScore: 280,
+        culturalScore: 170,
+        literaryScore: 90
+      },
+      {
+        id: 'h25-seniors',
+        name: 'Apex Batch',
+        subname: 'MBBS Batch 2020 (Interns)',
+        crest: '👑',
+        tagline: 'Interns Farewell Run',
+        score: 490,
+        rank: 5,
+        prevRank: 5,
+        gold: 3,
+        silver: 2,
+        bronze: 5,
+        sportsScore: 270,
+        culturalScore: 130,
+        literaryScore: 90
+      }
+    ],
+    events: [
+      {
+        id: 'h25-ev-1',
+        title: 'Inter-Batch Cricket Cup Final',
+        category: 'sports',
+        winnerBatchId: 'h25-centurions',
+        runnerUpBatchId: 'h25-valiants',
+        pointsAwarded: 100,
+        date: '08 Nov 2025',
+        venue: 'MAMC Main Ground',
+        status: 'completed'
+      },
+      {
+        id: 'h25-ev-2',
+        title: 'Battle of the Bands Final',
+        category: 'cultural',
+        winnerBatchId: 'h25-valiants',
+        runnerUpBatchId: 'h25-invincibles',
+        pointsAwarded: 80,
+        date: '09 Nov 2025',
+        venue: 'Amphitheatre',
+        status: 'completed'
+      },
+      {
+        id: 'h25-ev-3',
+        title: 'Synapse All-India Medical Quiz',
+        category: 'literary',
+        winnerBatchId: 'h25-centurions',
+        runnerUpBatchId: 'h25-titans',
+        pointsAwarded: 60,
+        date: '10 Nov 2025',
+        venue: 'LT-1',
+        status: 'completed'
+      }
+    ]
+  },
+  goonj24: {
+    id: 'goonj24',
+    name: "Goonj '24 (Archives)",
+    shortName: "Goonj '24",
+    year: 2024,
+    isLive: false,
+    themeTitle: "Chronicles of Azad",
+    lastUpdated: '12 Nov 2024, 11:15:00 PM IST',
+    championBatchName: 'Apex Batch (MBBS 2020)',
+    runnerUpBatchName: 'Centurions (MBBS 2021)',
+    teams: [
+      {
+        id: 'h24-apex',
+        name: 'Apex Batch',
+        subname: 'MBBS Batch 2020',
+        crest: '👑',
+        tagline: 'Goonj 2024 Grand Champions',
+        score: 970,
+        rank: 1,
+        prevRank: 1,
+        gold: 11,
+        silver: 7,
+        bronze: 4,
+        sportsScore: 510,
+        culturalScore: 290,
+        literaryScore: 170
+      },
+      {
+        id: 'h24-centurions',
+        name: 'Centurions',
+        subname: 'MBBS Batch 2021',
+        crest: '⚔️',
+        tagline: 'Runners-Up Goonj 2024',
+        score: 890,
+        rank: 2,
+        prevRank: 2,
+        gold: 8,
+        silver: 8,
+        bronze: 6,
+        sportsScore: 470,
+        culturalScore: 270,
+        literaryScore: 150
+      },
+      {
+        id: 'h24-valiants',
+        name: 'Valiants',
+        subname: 'MBBS Batch 2022',
+        crest: '🛡️',
+        tagline: 'Second Year Challengers',
+        score: 740,
+        rank: 3,
+        prevRank: 3,
+        gold: 5,
+        silver: 6,
+        bronze: 7,
+        sportsScore: 390,
+        culturalScore: 220,
+        literaryScore: 130
+      },
+      {
+        id: 'h24-invincibles',
+        name: 'Invincibles',
+        subname: 'MBBS Batch 2023 (Freshers)',
+        crest: '⚡',
+        tagline: 'Dynamic Freshers Debut',
+        score: 590,
+        rank: 4,
+        prevRank: 4,
+        gold: 4,
+        silver: 4,
+        bronze: 4,
+        sportsScore: 320,
+        culturalScore: 170,
+        literaryScore: 100
+      }
+    ],
+    events: [
+      {
+        id: 'h24-ev-1',
+        title: 'Mega Choreography Night',
+        category: 'cultural',
+        winnerBatchId: 'h24-apex',
+        runnerUpBatchId: 'h24-centurions',
+        pointsAwarded: 100,
+        date: '11 Nov 2024',
+        venue: 'Auditorium Complex',
+        status: 'completed'
+      },
+      {
+        id: 'h24-ev-2',
+        title: 'Inter-Batch Basketball Tournament',
+        category: 'sports',
+        winnerBatchId: 'h24-centurions',
+        runnerUpBatchId: 'h24-apex',
+        pointsAwarded: 90,
+        date: '10 Nov 2024',
+        venue: 'Hardcourt',
+        status: 'completed'
+      }
+    ]
+  }
+};

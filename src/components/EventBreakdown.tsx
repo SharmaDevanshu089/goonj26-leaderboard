@@ -13,12 +13,17 @@ export const EventBreakdown: React.FC<EventBreakdownProps> = ({ events }) => {
   const medalEmojis = ['🥇', '🥈', '🥉'];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 my-8">
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-4">
-        Events Held
-      </h2>
+    <div className="w-full max-w-lg sm:max-w-xl mx-auto px-3 sm:px-4 my-6">
+      <div className="flex items-center justify-between mb-3 px-1">
+        <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 tracking-wider uppercase">
+          Events Held
+        </h2>
+        <span className="text-[11px] font-medium text-slate-400">
+          {events.length} Completed
+        </span>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-3">
         {events.map((ev) => {
           const placements = ev.placements && ev.placements.length > 0
             ? ev.placements

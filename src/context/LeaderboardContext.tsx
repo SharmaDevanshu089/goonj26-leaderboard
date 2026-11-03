@@ -4,7 +4,7 @@ import { INITIAL_GOONJ_26 } from '../data/initialData';
 import { HISTORICAL_EDITIONS } from '../data/historicalData';
 
 export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DEVANSHU_A_HUGE_PARTY";
-const STORAGE_KEY = 'goonj26_noticeboard_v5';
+const STORAGE_KEY = 'goonj26_noticeboard_v6';
 const AUTH_STORAGE_KEY = 'goonj26_admin_auth';
 
 interface LeaderboardContextType {

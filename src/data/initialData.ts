@@ -83,35 +83,35 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
       literaryScore: 0
     },
     {
+      id: 'b2022',
+      name: '2022',
+      subname: 'Batch 2022',
+      crest: '',
+      tagline: '',
+      score: 5800,
+      rank: 5,
+      prevRank: 5,
+      gold: 0,
+      silver: 1,
+      bronze: 0,
+      sportsScore: 5800,
+      culturalScore: 0,
+      literaryScore: 0
+    },
+    {
       id: 'b2021',
       name: '2021',
       subname: 'Batch 2021',
       crest: '',
       tagline: '',
       score: 4500,
-      rank: 5,
-      prevRank: 5,
+      rank: 6,
+      prevRank: 6,
       gold: 0,
       silver: 1,
       bronze: 1,
       sportsScore: 4000,
       culturalScore: 500,
-      literaryScore: 0
-    },
-    {
-      id: 'b2022',
-      name: '2022',
-      subname: 'Batch 2022',
-      crest: '',
-      tagline: '',
-      score: 0,
-      rank: 6,
-      prevRank: 6,
-      gold: 0,
-      silver: 0,
-      bronze: 0,
-      sportsScore: 0,
-      culturalScore: 0,
       literaryScore: 0
     }
   ],
@@ -121,13 +121,13 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
       title: 'Annual Sports Meet (Overall Points)',
       category: 'sports',
       winnerBatchId: 'b2023',
-      runnerUpBatchId: 'b2024',
-      thirdPlaceBatchId: 'b2021',
+      runnerUpBatchId: 'b2022',
+      thirdPlaceBatchId: 'b2024',
       pointsAwarded: 9700,
       placements: [
         { batchId: '2023', points: 9700 },
-        { batchId: '2024', points: 4500 },
-        { batchId: '2021', points: 4000 }
+        { batchId: '2022', points: 5800 },
+        { batchId: '2024', points: 4500 }
       ],
       status: 'completed'
     },

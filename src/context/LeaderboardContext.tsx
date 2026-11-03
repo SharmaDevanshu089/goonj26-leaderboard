@@ -4,7 +4,7 @@ import { INITIAL_GOONJ_26 } from '../data/initialData';
 import { HISTORICAL_EDITIONS } from '../data/historicalData';
 
 export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DEVANSHU_A_HUGE_PARTY";
-const STORAGE_KEY = 'goonj26_noticeboard_v4';
+const STORAGE_KEY = 'goonj26_noticeboard_v5';
 const AUTH_STORAGE_KEY = 'goonj26_admin_auth';
 
 interface LeaderboardContextType {
@@ -203,7 +203,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setEditions(prev => {
       const cur = prev.goonj26;
       // Add points to winner
-      const points = newEvent.pointsAwarded;
+      const points = newEvent.pointsAwarded || 0;
       const updatedTeams = cur.teams.map(t => {
         if (t.id === newEvent.winnerBatchId) {
           const cat = newEvent.category;

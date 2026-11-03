@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Trophy, Medal, Flame, ArrowUp, ArrowDown, Minus, Crown } from 'lucide-react';
+import { Trophy, Medal, Flame, ArrowUp, ArrowDown, Minus, Crown, LayoutList } from 'lucide-react';
 import gsap from 'gsap';
 import confetti from 'canvas-confetti';
 import { BatchTeam } from '../types/leaderboard';
@@ -7,9 +7,10 @@ import { useLeaderboard } from '../context/LeaderboardContext';
 
 interface PodiumProps {
   teams: BatchTeam[];
+  onSwitchToTable?: () => void;
 }
 
-export const Podium: React.FC<PodiumProps> = ({ teams }) => {
+export const Podium: React.FC<PodiumProps> = ({ teams, onSwitchToTable }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const score1Ref = useRef<HTMLSpanElement | null>(null);
   const score2Ref = useRef<HTMLSpanElement | null>(null);
@@ -135,13 +136,24 @@ export const Podium: React.FC<PodiumProps> = ({ teams }) => {
   };
 
   return (
-    <div ref={containerRef} className="w-full my-6 sm:my-10">
+    <div ref={containerRef} className="w-full mt-2 mb-10">
       
       {/* Section Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-100 dark:bg-gold-950/60 text-gold-700 dark:text-gold-300 border border-gold-200 dark:border-gold-800 text-xs font-bold uppercase tracking-wider mb-2">
-          <Crown className="w-3.5 h-3.5 text-gold-500" />
-          Championship Podium
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-100 dark:bg-gold-950/60 text-gold-700 dark:text-gold-300 border border-gold-200 dark:border-gold-800 text-xs font-bold uppercase tracking-wider">
+            <Crown className="w-3.5 h-3.5 text-gold-500" />
+            Championship Podium
+          </div>
+          {onSwitchToTable && (
+            <button
+              onClick={onSwitchToTable}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-azad-100 dark:bg-azad-950/60 text-azad-700 dark:text-azad-300 border border-azad-200 dark:border-azad-800 text-xs font-bold hover:bg-azad-200 dark:hover:bg-azad-900 transition-all shadow-sm"
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>Full Standings Table</span>
+            </button>
+          )}
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
           Current Tournament Leaders

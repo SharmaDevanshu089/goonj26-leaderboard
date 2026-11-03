@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useLeaderboard, ADMIN_PASSWORD } from '../context/LeaderboardContext';
 import { EventCategory } from '../types/leaderboard';
+import { formatBatchName } from '../utils/formatters';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
   const [winnerId, setWinnerId] = useState(activeEdition.teams[0]?.id || '');
   const [runnerUpId, setRunnerUpId] = useState(activeEdition.teams[1]?.id || '');
   const [pointsAwarded, setPointsAwarded] = useState(75);
-  const [venue, setVenue] = useState('MAMC Main Ground');
+  const [venue, setVenue] = useState('Main Ground');
   const [customTimestamp, setCustomTimestamp] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -80,7 +81,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
       runnerUpBatchId: runnerUpId,
       pointsAwarded: Number(pointsAwarded),
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      venue: venue.trim() || 'MAMC Campus',
+      venue: venue.trim() || 'Campus',
       status: 'completed'
     });
 
@@ -210,7 +211,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
               </form>
 
               <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400">
-                <span>🔒 Authorized Personnel Only • Maulana Azad Medical College</span>
+                <span>🔒 Authorized Personnel Only</span>
               </div>
             </div>
           ) : (
@@ -243,10 +244,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
                           <span className="text-2xl">{team.crest}</span>
                           <div>
                             <span className="font-extrabold text-sm text-slate-900 dark:text-white">
-                              {team.name}
+                              {formatBatchName(team.name || team.id)}
                             </span>
                             <span className="text-[11px] text-slate-400 block">
-                              {team.subname} • Rank #{team.rank}
+                              Rank #{team.rank}
                             </span>
                           </div>
                         </div>
@@ -384,7 +385,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
                     >
                       {activeEdition.teams.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.crest} {t.name} ({t.subname})
+                          {formatBatchName(t.name || t.id)}
                         </option>
                       ))}
                     </select>
@@ -401,7 +402,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
                     >
                       {activeEdition.teams.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.crest} {t.name} ({t.subname})
+                          {formatBatchName(t.name || t.id)}
                         </option>
                       ))}
                     </select>

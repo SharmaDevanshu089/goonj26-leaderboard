@@ -17,17 +17,23 @@ export interface BatchTeam {
 
 export type EventCategory = 'all' | 'sports' | 'cultural' | 'literary';
 
+export interface EventPlacement {
+  batchId: string;
+  points: number;
+}
+
 export interface EventResult {
   id: string;
   title: string;
-  category: 'sports' | 'cultural' | 'literary';
-  winnerBatchId: string;
-  runnerUpBatchId: string;
+  category?: 'sports' | 'cultural' | 'literary';
+  winnerBatchId?: string;
+  runnerUpBatchId?: string;
   thirdPlaceBatchId?: string;
-  pointsAwarded: number;
-  date: string;
-  venue: string;
-  status: 'completed' | 'ongoing' | 'upcoming';
+  pointsAwarded?: number;
+  placements?: EventPlacement[];
+  date?: string;
+  venue?: string;
+  status?: 'completed' | 'ongoing' | 'upcoming';
 }
 
 export interface TournamentEdition {

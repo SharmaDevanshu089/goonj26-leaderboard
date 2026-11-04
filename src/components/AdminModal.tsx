@@ -1,30 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Lock,
   Unlock,
   KeyRound,
-  Save,
   Plus,
-  Minus,
   RotateCcw,
   Download,
   Upload,
-  Calendar,
   Clock,
   Award,
   AlertCircle,
   CheckCircle2,
-  Trophy
+  Trophy,
+  Pencil,
+  Trash2,
+  Eye,
+  EyeOff,
+  Search,
+  Check
 } from 'lucide-react';
-import { useLeaderboard, ADMIN_PASSWORD } from '../context/LeaderboardContext';
-import { EventCategory } from '../types/leaderboard';
+import { useLeaderboard } from '../context/LeaderboardContext';
 import { formatBatchName } from '../utils/formatters';
+import { EventResult } from '../types/leaderboard';
 
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const ALL_BATCH_YEARS = ['2021', '2022', '2023', '2024', '2025', '2026'];
 
 export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
   const {
@@ -32,62 +37,173 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
+    saveEventResult,
+    deleteEventResult,
     updateTeamScore,
     updateTeamMedals,
-    addEventResult,
     updateLastUpdatedTime,
     resetToDefault,
     exportDataJson,
     importDataJson
   } = useLeaderboard();
 
+  // Navigation tab in Admin
+  const [activeTab, setActiveTab] = useState<'events' | 'standings' | 'backup'>('events');
+
   // Auth form state
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // New Event Form State
+  // Status Toast Message
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Event Form State (Add / Edit)
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState('');
-  const [eventCategory, setEventCategory] = useState<'sports' | 'cultural' | 'literary'>('sports');
-  const [winnerId, setWinnerId] = useState(activeEdition.teams[0]?.id || '');
-  const [runnerUpId, setRunnerUpId] = useState(activeEdition.teams[1]?.id || '');
-  const [pointsAwarded, setPointsAwarded] = useState(75);
-  const [venue, setVenue] = useState('Main Ground');
-  const [customTimestamp, setCustomTimestamp] = useState('');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [eventCategory, setEventCategory] = useState<'sports' | 'cultural'>('cultural');
+  const [batchPoints, setBatchPoints] = useState<Record<string, string>>({
+    '2021': '',
+    '2022': '',
+    '2023': '',
+    '2024': '',
+    '2025': '',
+    '2026': ''
+  });
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Auto-dismiss status toast after 4s
+  useEffect(() => {
+    if (!statusMessage) return;
+    const timer = setTimeout(() => setStatusMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [statusMessage]);
 
   if (!isOpen) return null;
 
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setStatusMessage({ text, type });
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const success = loginAdmin(passwordInput.trim());
+    const success = loginAdmin(passwordInput);
     if (success) {
       setAuthError(false);
       setPasswordInput('');
-      setStatusMessage('Authentication successful! Welcome to Goonj 26 Admin Control.');
+      showToast('Admin verification successful! Welcome to Control Console.');
     } else {
       setAuthError(true);
     }
   };
 
-  const handleAddEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventTitle.trim()) return;
+  const resetEventForm = () => {
+    setEditingEventId(null);
+    setEventTitle('');
+    setEventCategory('cultural');
+    setBatchPoints({
+      '2021': '',
+      '2022': '',
+      '2023': '',
+      '2024': '',
+      '2025': '',
+      '2026': ''
+    });
+  };
 
-    addEventResult({
-      title: eventTitle.trim(),
-      category: eventCategory,
-      winnerBatchId: winnerId,
-      runnerUpBatchId: runnerUpId,
-      pointsAwarded: Number(pointsAwarded),
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      venue: venue.trim() || 'Campus',
-      status: 'completed'
+  const handleEditClick = (event: EventResult) => {
+    setEditingEventId(event.id);
+    setEventTitle(event.title);
+    setEventCategory(event.category === 'sports' ? 'sports' : 'cultural');
+
+    const pointsMap: Record<string, string> = {
+      '2021': '',
+      '2022': '',
+      '2023': '',
+      '2024': '',
+      '2025': '',
+      '2026': ''
+    };
+
+    if (event.placements && event.placements.length > 0) {
+      event.placements.forEach(p => {
+        const year = formatBatchName(p.batchId);
+        if (pointsMap[year] !== undefined) {
+          const currentPts = Number(pointsMap[year]) || 0;
+          pointsMap[year] = String(currentPts + p.points);
+        }
+      });
+    } else {
+      if (event.winnerBatchId) {
+        const y = formatBatchName(event.winnerBatchId);
+        if (pointsMap[y] !== undefined) pointsMap[y] = String(event.pointsAwarded || 0);
+      }
+      if (event.runnerUpBatchId) {
+        const y = formatBatchName(event.runnerUpBatchId);
+        if (pointsMap[y] !== undefined) pointsMap[y] = String(Math.floor((event.pointsAwarded || 0) * 0.5));
+      }
+      if (event.thirdPlaceBatchId) {
+        const y = formatBatchName(event.thirdPlaceBatchId);
+        if (pointsMap[y] !== undefined) pointsMap[y] = String(Math.floor((event.pointsAwarded || 0) * 0.25));
+      }
+    }
+
+    setBatchPoints(pointsMap);
+    setActiveTab('events');
+
+    // Scroll smoothly to form
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleSaveEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventTitle.trim()) {
+      showToast('Please enter an event title.', 'error');
+      return;
+    }
+
+    const numericPoints: Record<string, number> = {};
+    let totalAssigned = 0;
+
+    ALL_BATCH_YEARS.forEach(yr => {
+      const val = Number(batchPoints[yr]) || 0;
+      numericPoints[yr] = val;
+      if (val > 0) totalAssigned += val;
     });
 
-    setEventTitle('');
-    setStatusMessage(`Event "${eventTitle}" recorded & points credited to winner!`);
-    setTimeout(() => setStatusMessage(null), 4000);
+    if (totalAssigned === 0) {
+      showToast('Please enter points for at least one batch.', 'error');
+      return;
+    }
+
+    saveEventResult({
+      id: editingEventId || undefined,
+      title: eventTitle.trim(),
+      category: eventCategory,
+      batchPoints: numericPoints
+    });
+
+    showToast(
+      editingEventId
+        ? `Event "${eventTitle.trim()}" successfully updated & standings recalculated!`
+        : `Event "${eventTitle.trim()}" recorded & standings recalculated!`
+    );
+
+    resetEventForm();
+  };
+
+  const handleDeleteEvent = (event: EventResult) => {
+    if (confirm(`Are you sure you want to delete "${event.title}"? Points and standings will be recalculated.`)) {
+      deleteEventResult(event.id);
+      showToast(`Event "${event.title}" deleted.`);
+      if (editingEventId === event.id) {
+        resetEventForm();
+      }
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,463 +215,665 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
       if (content) {
         const ok = importDataJson(content);
         if (ok) {
-          setStatusMessage('Data imported successfully from backup JSON!');
+          showToast('Data imported successfully from JSON backup!');
         } else {
-          setStatusMessage('Failed to import JSON: Invalid format.');
+          showToast('Failed to import JSON: Invalid format.', 'error');
         }
       }
     };
     reader.readAsText(file);
   };
 
+  // Compute live preview of descending order from batchPoints input
+  const liveSortedPreview = Object.entries(batchPoints)
+    .map(([year, pts]) => ({ year, points: Number(pts) || 0 }))
+    .filter(item => item.points > 0)
+    .sort((a, b) => b.points - a.points);
+
+  const medalEmojis = ['🥇', '🥈', '🥉'];
+
+  // Filter events by search query
+  const filteredEvents = activeEdition.events.filter(ev =>
+    ev.title.toLowerCase().includes(eventSearchQuery.toLowerCase())
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl glass-card-elevated border border-slate-300 dark:border-white/10 shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Modal Top Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-100/60 dark:bg-slate-900/60">
+        {/* Top Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-azad-600 text-white">
-              {isAdminLoggedIn ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+            <div className="p-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900">
+              {isAdminLoggedIn ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </div>
             <div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Goonj '26 Admin Control Console</span>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 leading-none">
+                <span>Goonj '26 Admin Console</span>
                 {isAdminLoggedIn && (
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
                     Live Session
                   </span>
                 )}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Official tournament score verification & telemetry management
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Official tournament score verification & notice board management
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Close Admin Modal"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
-          
-          {/* Status Alert Toast */}
-          {statusMessage && (
-            <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 text-xs sm:text-sm font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>{statusMessage}</span>
+        {/* Global Toast Alert */}
+        {statusMessage && (
+          <div
+            className={`px-5 py-2.5 flex items-center gap-2 text-xs font-semibold ${
+              statusMessage.type === 'error'
+                ? 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 border-b border-rose-200 dark:border-rose-900'
+                : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border-b border-emerald-200 dark:border-emerald-900'
+            }`}
+          >
+            {statusMessage.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+            )}
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
+
+        {/* ================= UNAUTHENTICATED STATE ================= */}
+        {!isAdminLoggedIn ? (
+          <div className="p-8 max-w-md mx-auto text-center space-y-6">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 flex items-center justify-center shadow-inner border border-slate-200 dark:border-slate-700">
+              <KeyRound className="w-7 h-7" />
             </div>
-          )}
 
-          {/* ================= AUTHENTICATION GATE ================= */}
-          {!isAdminLoggedIn ? (
-            <div className="max-w-md mx-auto py-8 text-center space-y-6">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-azad-100 dark:bg-azad-950/80 text-azad-600 dark:text-azad-400 flex items-center justify-center shadow-inner border border-azad-200 dark:border-azad-800">
-                <KeyRound className="w-8 h-8" />
-              </div>
+            <div>
+              <h4 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                Admin Verification Required
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Enter the administrator secret password to access and update live points.
+              </p>
+            </div>
 
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <h4 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                  Admin Verification Required
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Please enter the authorized tournament administrator secret key to modify live scores and events.
-                </p>
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setAuthError(false);
+                    }}
+                    placeholder="Enter Admin Password..."
+                    className={`w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white border ${
+                      authError
+                        ? 'border-rose-500 focus:ring-rose-500'
+                        : 'border-slate-300 dark:border-slate-700 focus:ring-slate-800'
+                    } text-sm focus:outline-none focus:ring-2`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-rose-500 text-left">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Incorrect password. Access denied.</span>
+                  </div>
+                )}
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={passwordInput}
-                      onChange={(e) => {
-                        setPasswordInput(e.target.value);
-                        setAuthError(false);
-                      }}
-                      placeholder="Enter Admin Password..."
-                      className={`w-full px-4 py-3 rounded-xl glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border ${
-                        authError
-                          ? 'border-rose-500 focus:ring-rose-500'
-                          : 'border-slate-300 dark:border-slate-700 focus:ring-azad-500'
-                      } text-sm focus:outline-none focus:ring-2`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm shadow transition-all"
+              >
+                Authenticate & Unlock
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* ================= AUTHENTICATED STATE ================= */
+          <div className="flex-1 flex flex-col overflow-hidden">
+            
+            {/* Tab Navigation */}
+            <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 px-4 pt-2 gap-1 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab('events')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg transition-colors border-t border-x ${
+                  activeTab === 'events'
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white -mb-px'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>Events Manager</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800">
+                  {activeEdition.events.length}
+                </span>
+              </button>
 
-                  {authError && (
-                    <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>Incorrect administrative password. Access denied.</span>
+              <button
+                onClick={() => setActiveTab('standings')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg transition-colors border-t border-x ${
+                  activeTab === 'standings'
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white -mb-px'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Batch Standings</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('backup')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg transition-colors border-t border-x ${
+                  activeTab === 'backup'
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white -mb-px'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Backup & Reset</span>
+              </button>
+            </div>
+
+            {/* Tab Contents */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+
+              {/* ================= TAB 1: EVENTS MANAGER ================= */}
+              {activeTab === 'events' && (
+                <div className="space-y-6">
+                  
+                  {/* ADD / EDIT EVENT CARD */}
+                  <div
+                    ref={formRef}
+                    className={`rounded-2xl border p-4 sm:p-5 transition-all shadow-sm ${
+                      editingEventId
+                        ? 'border-amber-400 dark:border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`p-1.5 rounded-lg ${
+                            editingEventId
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                          }`}
+                        >
+                          {editingEventId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                            {editingEventId ? `Editing Event: ${eventTitle || 'Untitled'}` : 'Add / Log Event'}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Enter points for each batch. Batches are automatically ordered from highest to lowest!
+                          </p>
+                        </div>
+                      </div>
+
+                      {editingEventId && (
+                        <button
+                          type="button"
+                          onClick={resetEventForm}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-azad-600 hover:bg-azad-500 text-white font-bold text-sm shadow-md shadow-azad-600/30 transition-all hover:scale-[1.01]"
-                >
-                  Authenticate & Unlock
-                </button>
-              </form>
-
-              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400">
-                <span>🔒 Authorized Personnel Only</span>
-              </div>
-            </div>
-          ) : (
-            /* ================= LOGGED IN ADMIN DASHBOARD ================= */
-            <div className="space-y-8">
-              
-              {/* SECTION 1: BATCH SCORE & MEDAL CONTROLS */}
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                  <div>
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                      <Trophy className="w-4 h-4 text-gold-500" />
-                      Direct Batch Score & Medal Steppers
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Modifying scores immediately re-ranks all batches and updates the "Last Updated" timestamp.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {activeEdition.teams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="p-4 rounded-xl glass-card border border-slate-200 dark:border-slate-800 space-y-3"
-                    >
-                      {/* Batch Identity */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{team.crest}</span>
-                          <div>
-                            <span className="font-extrabold text-sm text-slate-900 dark:text-white">
-                              {formatBatchName(team.name || team.id)}
-                            </span>
-                            <span className="text-[11px] text-slate-400 block">
-                              Rank #{team.rank}
-                            </span>
-                          </div>
+                    <form onSubmit={handleSaveEvent} className="space-y-4">
+                      
+                      {/* Event Title & Category */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                            Event Title *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Table Tennis, Nukkad Natak, Cricket Final..."
+                            value={eventTitle}
+                            onChange={(e) => setEventTitle(e.target.value)}
+                            required
+                            className="w-full px-3 py-2 text-sm rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800 dark:focus:ring-white"
+                          />
                         </div>
 
-                        {/* Current Score Display */}
-                        <div className="text-right">
-                          <span className="text-xl font-black font-tabular text-azad-600 dark:text-azad-400">
-                            {team.score}
+                        <div>
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                            Event Category
+                          </label>
+                          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => setEventCategory('cultural')}
+                              className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                eventCategory === 'cultural'
+                                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              🎭 Cultural
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEventCategory('sports')}
+                              className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                eventCategory === 'sports'
+                                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              ⚽ Sports
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* BATCH POINTS GRID */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Points Scored By Each Batch
+                          </label>
+                          <span className="text-[10px] text-slate-400">
+                            Leave 0 or blank for batches that didn't score
                           </span>
-                          <span className="text-[10px] text-slate-400 block font-semibold">points</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                          {ALL_BATCH_YEARS.map((year) => (
+                            <div
+                              key={year}
+                              className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex flex-col justify-between"
+                            >
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-200 mb-1.5">
+                                Batch {year}
+                              </span>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={batchPoints[year]}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setBatchPoints((prev) => ({
+                                      ...prev,
+                                      [year]: val
+                                    }));
+                                  }}
+                                  className="w-full pl-2.5 pr-8 py-1.5 text-xs sm:text-sm font-bold font-mono rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-white"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400">
+                                  pts
+                                </span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Quick Stepper Buttons */}
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">Points:</span>
+                      {/* LIVE DESCENDING ORDER PREVIEW */}
+                      <div className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">
+                          Automatic Descending Order Preview
+                        </span>
+                        {liveSortedPreview.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {liveSortedPreview.map((item, idx) => (
+                              <div
+                                key={item.year}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-xs"
+                              >
+                                <span>{medalEmojis[idx] || `#${idx + 1}`}</span>
+                                <span className="font-extrabold text-slate-900 dark:text-white">{item.year}</span>
+                                <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                  {item.points.toLocaleString()} pts
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">
+                            Enter points in any batch box above to preview automatic order
+                          </span>
+                        )}
+                      </div>
+
+                      {/* SUBMIT BUTTON */}
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        {editingEventId && (
+                          <button
+                            type="button"
+                            onClick={resetEventForm}
+                            className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
                         <button
-                          onClick={() => updateTeamScore(team.id, 10, true)}
-                          className="px-2 py-1 text-xs font-bold rounded-md bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800"
+                          type="submit"
+                          className="px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-md transition-all flex items-center gap-1.5"
                         >
-                          +10
-                        </button>
-                        <button
-                          onClick={() => updateTeamScore(team.id, 25, true)}
-                          className="px-2 py-1 text-xs font-bold rounded-md bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800"
-                        >
-                          +25
-                        </button>
-                        <button
-                          onClick={() => updateTeamScore(team.id, 50, true)}
-                          className="px-2 py-1 text-xs font-bold rounded-md bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800"
-                        >
-                          +50
-                        </button>
-                        <button
-                          onClick={() => updateTeamScore(team.id, -10, true)}
-                          className="px-2 py-1 text-xs font-bold rounded-md bg-rose-100 hover:bg-rose-200 dark:bg-rose-950 dark:hover:bg-rose-900 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-800"
-                        >
-                          -10
+                          <Check className="w-4 h-4" />
+                          <span>{editingEventId ? 'Update Event & Recalculate' : 'Save Event & Update Standings'}</span>
                         </button>
                       </div>
 
-                      {/* Medal Steppers */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
-                        <span className="text-[10px] font-bold uppercase text-slate-400">Medals:</span>
-                        <div className="flex items-center gap-3">
-                          {/* Gold */}
-                          <div className="flex items-center gap-1">
-                            <span title="Gold Medals">🥇</span>
-                            <span className="font-mono font-bold">{team.gold}</span>
-                            <button
-                              onClick={() => updateTeamMedals(team.id, team.gold + 1, team.silver, team.bronze)}
-                              className="w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 font-bold flex items-center justify-center hover:bg-slate-300"
-                            >
-                              +
-                            </button>
-                          </div>
-                          {/* Silver */}
-                          <div className="flex items-center gap-1">
-                            <span title="Silver Medals">🥈</span>
-                            <span className="font-mono font-bold">{team.silver}</span>
-                            <button
-                              onClick={() => updateTeamMedals(team.id, team.gold, team.silver + 1, team.bronze)}
-                              className="w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 font-bold flex items-center justify-center hover:bg-slate-300"
-                            >
-                              +
-                            </button>
-                          </div>
-                          {/* Bronze */}
-                          <div className="flex items-center gap-1">
-                            <span title="Bronze Medals">🥉</span>
-                            <span className="font-mono font-bold">{team.bronze}</span>
-                            <button
-                              onClick={() => updateTeamMedals(team.id, team.gold, team.silver, team.bronze + 1)}
-                              className="w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 font-bold flex items-center justify-center hover:bg-slate-300"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
+                    </form>
+                  </div>
+
+                  {/* EXISTING EVENTS LIST */}
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                          Recorded Events ({activeEdition.events.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Click "Edit" on any event to modify points or title.
+                        </p>
+                      </div>
+
+                      {/* Search Filter */}
+                      <div className="relative w-full sm:w-64">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search events..."
+                          value={eventSearchQuery}
+                          onChange={(e) => setEventSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-white"
+                        />
                       </div>
                     </div>
-                  ))}
+
+                    <div className="space-y-2.5">
+                      {filteredEvents.map((ev) => {
+                        const placements = ev.placements && ev.placements.length > 0
+                          ? ev.placements
+                          : [
+                              ...(ev.winnerBatchId ? [{ batchId: ev.winnerBatchId, points: ev.pointsAwarded || 0 }] : []),
+                              ...(ev.runnerUpBatchId ? [{ batchId: ev.runnerUpBatchId, points: Math.floor((ev.pointsAwarded || 0) * 0.5) }] : []),
+                              ...(ev.thirdPlaceBatchId ? [{ batchId: ev.thirdPlaceBatchId, points: Math.floor((ev.pointsAwarded || 0) * 0.25) }] : [])
+                            ];
+
+                        const isBeingEdited = editingEventId === ev.id;
+
+                        return (
+                          <div
+                            key={ev.id}
+                            className={`p-3.5 rounded-xl border transition-all ${
+                              isBeingEdited
+                                ? 'border-amber-400 bg-amber-50/30 dark:border-amber-500/60 dark:bg-amber-950/20'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h5 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                    {ev.title}
+                                  </h5>
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      ev.category === 'sports'
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900'
+                                        : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-900'
+                                    }`}
+                                  >
+                                    {ev.category === 'sports' ? '⚽ Sports' : '🎭 Cultural'}
+                                  </span>
+                                </div>
+
+                                {/* Placements preview in order */}
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                  {placements.map((p, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-300"
+                                    >
+                                      <span>{medalEmojis[idx] || `#${idx + 1}`}</span>
+                                      <span className="font-bold">{formatBatchName(p.batchId)}:</span>
+                                      <span className="font-mono text-slate-600 dark:text-slate-400">
+                                        {p.points.toLocaleString()} pts
+                                      </span>
+                                      {idx < placements.length - 1 && <span className="text-slate-300 dark:text-slate-700">•</span>}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Edit & Delete Action Buttons */}
+                              <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditClick(ev)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteEvent(ev)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  title="Delete Event"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
-              </div>
+              )}
 
-              {/* SECTION 2: ADD NEW EVENT RESULT */}
-              <div className="p-5 rounded-2xl glass-card border border-slate-200 dark:border-slate-800">
-                <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
-                  <Award className="w-4 h-4 text-azad-500" />
-                  Log New Completed Competition
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                  Automatically calculates 1st, 2nd, and 3rd place points and credits the winner batches.
-                </p>
-
-                <form onSubmit={handleAddEvent} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Event Title / Match Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Inter-Batch Cricket Final, Nukkad Natak, Medical Trivia..."
-                      value={eventTitle}
-                      onChange={(e) => setEventTitle(e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                      required
-                    />
+              {/* ================= TAB 2: BATCH STANDINGS ================= */}
+              {activeTab === 'standings' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        Batch Standings & Manual Overrides
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Scores automatically reflect all recorded events. Use steppers below for manual delta tweaks if needed.
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={eventCategory}
-                      onChange={(e) => setEventCategory(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                    >
-                      <option value="sports">Sports Arena</option>
-                      <option value="cultural">Cultural Euphoria</option>
-                      <option value="literary">Literary & Quiz</option>
-                    </select>
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {activeEdition.teams.map((team) => (
+                      <div
+                        key={team.id}
+                        className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">
+                              {team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : `#${team.rank}`}
+                            </span>
+                            <div>
+                              <span className="font-extrabold text-sm text-slate-900 dark:text-white block">
+                                Batch {formatBatchName(team.name || team.id)}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Sports: {team.sportsScore?.toLocaleString() || 0} pts
+                              </span>
+                            </div>
+                          </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Winner (1st Place / Gold)
-                    </label>
-                    <select
-                      value={winnerId}
-                      onChange={(e) => setWinnerId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                    >
-                      {activeEdition.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {formatBatchName(t.name || t.id)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                          <div className="text-right">
+                            <span className="text-lg font-black font-mono text-slate-900 dark:text-white">
+                              {team.score.toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-medium">pts total</span>
+                          </div>
+                        </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Runner-up (2nd Place / Silver)
-                    </label>
-                    <select
-                      value={runnerUpId}
-                      onChange={(e) => setRunnerUpId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                    >
-                      {activeEdition.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {formatBatchName(t.name || t.id)}
-                        </option>
-                      ))}
-                    </select>
+                        {/* Quick Steppers */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                          <span className="text-[10px] font-bold uppercase text-slate-400">Manual Points:</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => updateTeamScore(team.id, 50, true)}
+                              className="px-2 py-0.5 text-xs font-bold rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200"
+                            >
+                              +50
+                            </button>
+                            <button
+                              onClick={() => updateTeamScore(team.id, 10, true)}
+                              className="px-2 py-0.5 text-xs font-bold rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200"
+                            >
+                              +10
+                            </button>
+                            <button
+                              onClick={() => updateTeamScore(team.id, -10, true)}
+                              className="px-2 py-0.5 text-xs font-bold rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200 hover:bg-rose-200"
+                            >
+                              -10
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  <div>
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Winner Points
-                    </label>
-                    <input
-                      type="number"
-                      value={pointsAwarded}
-                      onChange={(e) => setPointsAwarded(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                      min={10}
-                      max={200}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
-                      Venue
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Main Ground, LT-1, Open Air Amphitheatre"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg glass-card bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-azad-500"
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 px-4 rounded-lg bg-azad-600 hover:bg-azad-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Commit Event & Award</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* SECTION 3: TIMESTAMP OVERRIDE & DATA BACKUP */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                {/* Timestamp management */}
-                <div className="p-4 rounded-xl glass-card border border-slate-200 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
-                    <Clock className="w-4 h-4 text-azad-500" />
-                    <span>Timestamp Telemetry</span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Current recorded timestamp: <br />
-                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                      {activeEdition.lastUpdated}
-                    </span>
-                  </p>
-                  <div className="flex gap-2">
+              {/* ================= TAB 3: BACKUP & RESET ================= */}
+              {activeTab === 'backup' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Timestamp override */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                      <Clock className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                      <span>Last Updated Timestamp</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Current recorded timestamp: <br />
+                      <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                        {activeEdition.lastUpdated}
+                      </span>
+                    </p>
                     <button
                       type="button"
                       onClick={() => {
                         updateLastUpdatedTime();
-                        setStatusMessage('Timestamp updated to current real-world time!');
+                        showToast('Timestamp updated to current real-world time!');
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
                     >
-                      Force Update to Now
+                      Update Timestamp to Now
                     </button>
                   </div>
+
+                  {/* Data JSON Backup / Export / Import */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                      <Download className="w-4 h-4 text-emerald-500" />
+                      <span>JSON Backup & Sync</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Save tournament state to JSON or import on another device.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={exportDataJson}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export JSON</span>
+                      </button>
+
+                      <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold cursor-pointer">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Import JSON</span>
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to reset to initial seed data?')) {
+                            resetToDefault();
+                            showToast('Database reset to initial Goonj 26 seed data.');
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold"
+                        title="Reset all changes"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reset</span>
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
-
-                {/* JSON Data Backup / Export / Import */}
-                <div className="p-4 rounded-xl glass-card border border-slate-200 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
-                    <Download className="w-4 h-4 text-emerald-500" />
-                    <span>Export / Import Backup</span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Save tournament state or import across devices (useful for Vercel static deployments).
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={exportDataJson}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Export JSON</span>
-                    </button>
-
-                    <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold cursor-pointer">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Import JSON</span>
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to reset to initial seed data?')) {
-                          resetToDefault();
-                          setStatusMessage('Database reset to initial Goonj 26 seed data.');
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 text-xs font-semibold"
-                      title="Reset all changes"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset</span>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
+              )}
 
             </div>
-          )}
 
-        </div>
+            {/* Bottom Footer */}
+            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <span>Session:</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  Authenticated Administrator
+                </span>
+              </div>
 
-        {/* Modal Bottom Bar */}
-        <div className="px-6 py-3.5 border-t border-slate-200 dark:border-white/10 bg-slate-100/60 dark:bg-slate-900/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span>Authentication:</span>
-            <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
-              {isAdminLoggedIn ? 'Active (Full Write)' : 'Locked'}
-            </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={logoutAdmin}
+                  className="text-rose-500 hover:underline font-semibold"
+                >
+                  Log Out
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-3.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
           </div>
-
-          <div className="flex items-center gap-3">
-            {isAdminLoggedIn && (
-              <button
-                onClick={logoutAdmin}
-                className="text-rose-500 hover:underline font-semibold"
-              >
-                Log Out
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="px-4 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        )}
 
       </div>
     </div>

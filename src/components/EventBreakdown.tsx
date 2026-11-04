@@ -46,13 +46,13 @@ export const EventBreakdown: React.FC<EventBreakdownProps> = ({ events }) => {
                 {placements.map((p, idx) => (
                   <div key={idx} className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                     <div className="flex items-center gap-2">
-                      <span>{medalEmojis[idx] || '•'}</span>
+                      <span className="w-5 text-center text-xs">{medalEmojis[idx] || `#${idx + 1}`}</span>
                       <span className="font-medium text-slate-900 dark:text-slate-100">
                         {formatBatchName(p.batchId)}
                       </span>
                     </div>
                     <span className="font-semibold text-slate-700 dark:text-slate-300 font-mono text-xs">
-                      {p.points} pts
+                      {p.points.toLocaleString()} pts
                     </span>
                   </div>
                 ))}

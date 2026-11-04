@@ -93,7 +93,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
     if (success) {
       setAuthError(false);
       setPasswordInput('');
-      showToast('Admin verification successful! Welcome to Control Console.');
+      showToast('Verification successful! Welcome to Goonj \'26 points editor.');
     } else {
       setAuthError(true);
     }
@@ -249,16 +249,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 leading-none">
-                <span>Goonj '26 Admin Console</span>
+                <span>Goonj '26 points editor</span>
                 {isAdminLoggedIn && (
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
                     Live Session
                   </span>
                 )}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Official tournament score verification & notice board management
-              </p>
             </div>
           </div>
 

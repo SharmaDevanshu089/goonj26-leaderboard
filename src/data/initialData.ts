@@ -23,14 +23,14 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "subname": "Batch 2023",
         "crest": "",
         "tagline": "",
-        "score": 26350,
+        "score": 26675,
         "rank": 1,
         "prevRank": 1,
-        "gold": 5,
+        "gold": 6,
         "silver": 7,
         "bronze": 2,
         "sportsScore": 18700,
-        "culturalScore": 7650,
+        "culturalScore": 7975,
         "literaryScore": 0
     },
     {
@@ -39,14 +39,14 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "subname": "Batch 2024",
         "crest": "",
         "tagline": "",
-        "score": 18800,
+        "score": 18875,
         "rank": 2,
         "prevRank": 2,
         "gold": 7,
         "silver": 5,
         "bronze": 9,
         "sportsScore": 8300,
-        "culturalScore": 10500,
+        "culturalScore": 10575,
         "literaryScore": 0
     },
     {
@@ -55,14 +55,14 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "subname": "Batch 2025",
         "crest": "",
         "tagline": "",
-        "score": 15500,
+        "score": 15575,
         "rank": 3,
         "prevRank": 3,
         "gold": 3,
         "silver": 5,
         "bronze": 9,
         "sportsScore": 6200,
-        "culturalScore": 9300,
+        "culturalScore": 9375,
         "literaryScore": 0
     },
     {
@@ -71,14 +71,14 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "subname": "Batch 2026",
         "crest": "",
         "tagline": "",
-        "score": 12925,
+        "score": 13250,
         "rank": 4,
         "prevRank": 4,
         "gold": 6,
-        "silver": 5,
+        "silver": 6,
         "bronze": 2,
         "sportsScore": 4500,
-        "culturalScore": 8425,
+        "culturalScore": 8750,
         "literaryScore": 0
     },
     {
@@ -87,14 +87,14 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "subname": "Batch 2022",
         "crest": "",
         "tagline": "",
-        "score": 11850,
+        "score": 11925,
         "rank": 5,
         "prevRank": 5,
         "gold": 4,
         "silver": 1,
         "bronze": 2,
         "sportsScore": 7300,
-        "culturalScore": 4550,
+        "culturalScore": 4625,
         "literaryScore": 0
     },
     {
@@ -246,19 +246,27 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
         "winnerBatchId": "b2026",
         "runnerUpBatchId": "b2024",
         "thirdPlaceBatchId": "b2025",
-        "pointsAwarded": 700,
+        "pointsAwarded": 775,
         "placements": [
             {
                 "batchId": "2026",
-                "points": 700
+                "points": 775
             },
             {
                 "batchId": "2024",
-                "points": 500
+                "points": 575
             },
             {
                 "batchId": "2025",
-                "points": 300
+                "points": 375
+            },
+            {
+                "batchId": "2022",
+                "points": 75
+            },
+            {
+                "batchId": "2023",
+                "points": 75
             }
         ],
         "status": "completed"
@@ -762,6 +770,29 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
             {
                 "batchId": "2024",
                 "points": 600
+            },
+            {
+                "batchId": "2026",
+                "points": 100
+            }
+        ],
+        "status": "completed"
+    },
+    {
+        "id": "ev-minimalism",
+        "title": "Minimalism",
+        "category": "cultural",
+        "winnerBatchId": "b2023",
+        "runnerUpBatchId": "b2026",
+        "pointsAwarded": 250,
+        "placements": [
+            {
+                "batchId": "2023",
+                "points": 250
+            },
+            {
+                "batchId": "2026",
+                "points": 150
             }
         ],
         "status": "completed"

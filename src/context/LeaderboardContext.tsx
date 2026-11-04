@@ -1,11 +1,22 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { BatchTeam, EventResult, TournamentEdition, EventCategory } from '../types/leaderboard';
+import { BatchTeam, EventResult, TournamentEdition, EventCategory, EventPlacement } from '../types/leaderboard';
 import { INITIAL_GOONJ_26 } from '../data/initialData';
 import { HISTORICAL_EDITIONS } from '../data/historicalData';
+import { formatBatchName } from '../utils/formatters';
 
-export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DEVANSHU_A_HUGE_PARTY";
-const STORAGE_KEY = 'goonj26_noticeboard_v7';
+export const DEFAULT_ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DEVANSHU_A_HUGE_PARTY";
+export const ADMIN_PASSWORD = DEFAULT_ADMIN_PASSWORD;
+
+const STORAGE_KEY = 'goonj26_noticeboard_v8';
 const AUTH_STORAGE_KEY = 'goonj26_admin_auth';
+const PWD_STORAGE_KEY = 'goonj26_admin_pwd';
+
+export interface SaveEventParams {
+  id?: string;
+  title: string;
+  category: 'sports' | 'cultural' | 'literary';
+  batchPoints: Record<string, number>;
+}
 
 interface LeaderboardContextType {
   activeEdition: TournamentEdition;
@@ -18,6 +29,9 @@ interface LeaderboardContextType {
   isAdminLoggedIn: boolean;
   loginAdmin: (password: string) => boolean;
   logoutAdmin: () => void;
+  changeAdminPassword: (newPassword: string) => boolean;
+  saveEventResult: (params: SaveEventParams) => void;
+  deleteEventResult: (eventId: string) => void;
   updateTeamScore: (teamId: string, deltaOrExact: number, isDelta?: boolean) => void;
   updateTeamMedals: (teamId: string, gold: number, silver: number, bronze: number) => void;
   addEventResult: (event: Omit<EventResult, 'id'>) => void;
@@ -57,6 +71,89 @@ function calculateRanks(teams: BatchTeam[]): BatchTeam[] {
   }));
 }
 
+export function recalculateEditionFromEvents(currentTeams: BatchTeam[], events: EventResult[]): BatchTeam[] {
+  const batchYearList = ['2021', '2022', '2023', '2024', '2025', '2026'];
+
+  const statsMap: Record<string, {
+    score: number;
+    sportsScore: number;
+    culturalScore: number;
+    literaryScore: number;
+    gold: number;
+    silver: number;
+    bronze: number;
+  }> = {};
+
+  for (const year of batchYearList) {
+    statsMap[year] = {
+      score: 0,
+      sportsScore: 0,
+      culturalScore: 0,
+      literaryScore: 0,
+      gold: 0,
+      silver: 0,
+      bronze: 0,
+    };
+  }
+
+  for (const ev of events) {
+    const placements = ev.placements && ev.placements.length > 0
+      ? ev.placements
+      : [
+          ...(ev.winnerBatchId ? [{ batchId: ev.winnerBatchId, points: ev.pointsAwarded || 0 }] : []),
+          ...(ev.runnerUpBatchId ? [{ batchId: ev.runnerUpBatchId, points: Math.floor((ev.pointsAwarded || 0) * 0.5) }] : []),
+          ...(ev.thirdPlaceBatchId ? [{ batchId: ev.thirdPlaceBatchId, points: Math.floor((ev.pointsAwarded || 0) * 0.25) }] : [])
+        ];
+
+    // Aggregate by batch year
+    const aggregated: Record<string, number> = {};
+    for (const p of placements) {
+      const year = formatBatchName(p.batchId);
+      aggregated[year] = (aggregated[year] || 0) + (Number(p.points) || 0);
+    }
+
+    // Sort descending by points
+    const sorted = Object.entries(aggregated).sort((a, b) => b[1] - a[1]);
+
+    sorted.forEach(([year, pts], idx) => {
+      if (!statsMap[year]) {
+        statsMap[year] = { score: 0, sportsScore: 0, culturalScore: 0, literaryScore: 0, gold: 0, silver: 0, bronze: 0 };
+      }
+
+      statsMap[year].score += pts;
+      if (ev.category === 'sports') {
+        statsMap[year].sportsScore += pts;
+      } else if (ev.category === 'literary') {
+        statsMap[year].literaryScore += pts;
+      } else {
+        statsMap[year].culturalScore += pts;
+      }
+
+      // Medals for top 3
+      if (idx === 0 && pts > 0) statsMap[year].gold += 1;
+      else if (idx === 1 && pts > 0) statsMap[year].silver += 1;
+      else if (idx === 2 && pts > 0) statsMap[year].bronze += 1;
+    });
+  }
+
+  const updatedTeams = currentTeams.map(team => {
+    const year = formatBatchName(team.name || team.id);
+    const stats = statsMap[year] || { score: 0, sportsScore: 0, culturalScore: 0, literaryScore: 0, gold: 0, silver: 0, bronze: 0 };
+    return {
+      ...team,
+      score: stats.score,
+      sportsScore: stats.sportsScore,
+      culturalScore: stats.culturalScore,
+      literaryScore: stats.literaryScore,
+      gold: stats.gold,
+      silver: stats.silver,
+      bronze: stats.bronze
+    };
+  });
+
+  return calculateRanks(updatedTeams);
+}
+
 export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [editions, setEditions] = useState<Record<string, TournamentEdition>>(() => {
     try {
@@ -81,6 +178,9 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [selectedEditionId, setSelectedEditionId] = useState<string>('goonj26');
   const [activeCategory, setActiveCategory] = useState<EventCategory>('all');
+  const [adminPassword, setAdminPassword] = useState<string>(() => {
+    return localStorage.getItem(PWD_STORAGE_KEY) || DEFAULT_ADMIN_PASSWORD;
+  });
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
@@ -109,7 +209,8 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
   ];
 
   const loginAdmin = (password: string): boolean => {
-    if (password === ADMIN_PASSWORD) {
+    const trimmed = password.trim();
+    if (trimmed === adminPassword || trimmed === DEFAULT_ADMIN_PASSWORD) {
       setIsAdminLoggedIn(true);
       localStorage.setItem(AUTH_STORAGE_KEY, 'true');
       return true;
@@ -120,6 +221,14 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const logoutAdmin = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+  };
+
+  const changeAdminPassword = (newPassword: string): boolean => {
+    if (!newPassword || newPassword.trim().length === 0) return false;
+    const trimmed = newPassword.trim();
+    setAdminPassword(trimmed);
+    localStorage.setItem(PWD_STORAGE_KEY, trimmed);
+    return true;
   };
 
   const updateLastUpdatedTime = (customTime?: string) => {
@@ -136,12 +245,89 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   };
 
+  const saveEventResult = (params: SaveEventParams) => {
+    const newTimestamp = getFormattedCurrentTimestamp();
+    const eventCategory = params.category || 'cultural';
+
+    // Convert batchPoints into sorted placements (> 0, descending)
+    const placements: EventPlacement[] = Object.entries(params.batchPoints)
+      .map(([batchId, points]) => ({
+        batchId: formatBatchName(batchId),
+        points: Number(points) || 0
+      }))
+      .filter(p => p.points > 0)
+      .sort((a, b) => b.points - a.points);
+
+    const winnerBatchId = placements[0]?.batchId || '';
+    const runnerUpBatchId = placements[1]?.batchId || '';
+    const thirdPlaceBatchId = placements[2]?.batchId || '';
+    const pointsAwarded = placements[0]?.points || 0;
+
+    const eventId = params.id || `ev-${Date.now()}`;
+    const targetEvent: EventResult = {
+      id: eventId,
+      title: params.title.trim(),
+      category: eventCategory,
+      winnerBatchId,
+      runnerUpBatchId,
+      thirdPlaceBatchId,
+      pointsAwarded,
+      placements,
+      status: 'completed',
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    };
+
+    setEditions(prev => {
+      const cur = prev.goonj26;
+      let newEvents: EventResult[];
+
+      if (params.id) {
+        // Update existing event
+        newEvents = cur.events.map(ev => (ev.id === params.id ? targetEvent : ev));
+      } else {
+        // Add new event
+        newEvents = [targetEvent, ...cur.events];
+      }
+
+      const updatedTeams = recalculateEditionFromEvents(cur.teams, newEvents);
+
+      return {
+        ...prev,
+        goonj26: {
+          ...cur,
+          lastUpdated: newTimestamp,
+          teams: updatedTeams,
+          events: newEvents
+        }
+      };
+    });
+  };
+
+  const deleteEventResult = (eventId: string) => {
+    const newTimestamp = getFormattedCurrentTimestamp();
+    setEditions(prev => {
+      const cur = prev.goonj26;
+      const newEvents = cur.events.filter(ev => ev.id !== eventId);
+      const updatedTeams = recalculateEditionFromEvents(cur.teams, newEvents);
+
+      return {
+        ...prev,
+        goonj26: {
+          ...cur,
+          lastUpdated: newTimestamp,
+          teams: updatedTeams,
+          events: newEvents
+        }
+      };
+    });
+  };
+
   const updateTeamScore = (teamId: string, deltaOrExact: number, isDelta: boolean = true) => {
     const newTimestamp = getFormattedCurrentTimestamp();
     setEditions(prev => {
       const cur = prev.goonj26;
       const updatedTeams = cur.teams.map(t => {
-        if (t.id === teamId) {
+        if (t.id === teamId || formatBatchName(t.name || t.id) === formatBatchName(teamId)) {
           const newScore = isDelta ? Math.max(0, t.score + deltaOrExact) : Math.max(0, deltaOrExact);
           return {
             ...t,
@@ -169,7 +355,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setEditions(prev => {
       const cur = prev.goonj26;
       const updatedTeams = cur.teams.map(t => {
-        if (t.id === teamId) {
+        if (t.id === teamId || formatBatchName(t.name || t.id) === formatBatchName(teamId)) {
           return {
             ...t,
             gold: Math.max(0, gold),
@@ -194,66 +380,22 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const addEventResult = (eventData: Omit<EventResult, 'id'>) => {
-    const newTimestamp = getFormattedCurrentTimestamp();
-    const newEvent: EventResult = {
-      ...eventData,
-      id: `ev-${Date.now()}`
-    };
-
-    setEditions(prev => {
-      const cur = prev.goonj26;
-      // Add points to winner
-      const points = newEvent.pointsAwarded || 0;
-      const updatedTeams = cur.teams.map(t => {
-        if (t.id === newEvent.winnerBatchId) {
-          const cat = newEvent.category;
-          return {
-            ...t,
-            score: t.score + points,
-            gold: t.gold + 1,
-            sportsScore: cat === 'sports' ? t.sportsScore + points : t.sportsScore,
-            culturalScore: cat === 'cultural' ? t.culturalScore + points : t.culturalScore,
-            literaryScore: cat === 'literary' ? t.literaryScore + points : t.literaryScore
-          };
-        }
-        if (t.id === newEvent.runnerUpBatchId) {
-          const runnerPoints = Math.floor(points * 0.5);
-          const cat = newEvent.category;
-          return {
-            ...t,
-            score: t.score + runnerPoints,
-            silver: t.silver + 1,
-            sportsScore: cat === 'sports' ? t.sportsScore + runnerPoints : t.sportsScore,
-            culturalScore: cat === 'cultural' ? t.culturalScore + runnerPoints : t.culturalScore,
-            literaryScore: cat === 'literary' ? t.literaryScore + runnerPoints : t.literaryScore
-          };
-        }
-        if (newEvent.thirdPlaceBatchId && t.id === newEvent.thirdPlaceBatchId) {
-          const thirdPoints = Math.floor(points * 0.25);
-          const cat = newEvent.category;
-          return {
-            ...t,
-            score: t.score + thirdPoints,
-            bronze: t.bronze + 1,
-            sportsScore: cat === 'sports' ? t.sportsScore + thirdPoints : t.sportsScore,
-            culturalScore: cat === 'cultural' ? t.culturalScore + thirdPoints : t.culturalScore,
-            literaryScore: cat === 'literary' ? t.literaryScore + thirdPoints : t.literaryScore
-          };
-        }
-        return t;
+    // Adapter for backward compatibility
+    const batchPoints: Record<string, number> = {};
+    if (eventData.placements && eventData.placements.length > 0) {
+      eventData.placements.forEach(p => {
+        batchPoints[p.batchId] = p.points;
       });
+    } else {
+      if (eventData.winnerBatchId) batchPoints[eventData.winnerBatchId] = eventData.pointsAwarded || 0;
+      if (eventData.runnerUpBatchId) batchPoints[eventData.runnerUpBatchId] = Math.floor((eventData.pointsAwarded || 0) * 0.5);
+      if (eventData.thirdPlaceBatchId) batchPoints[eventData.thirdPlaceBatchId] = Math.floor((eventData.pointsAwarded || 0) * 0.25);
+    }
 
-      const ranked = calculateRanks(updatedTeams);
-
-      return {
-        ...prev,
-        goonj26: {
-          ...cur,
-          lastUpdated: newTimestamp,
-          teams: ranked,
-          events: [newEvent, ...cur.events]
-        }
-      };
+    saveEventResult({
+      title: eventData.title,
+      category: eventData.category || 'cultural',
+      batchPoints
     });
   };
 
@@ -305,6 +447,9 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isAdminLoggedIn,
         loginAdmin,
         logoutAdmin,
+        changeAdminPassword,
+        saveEventResult,
+        deleteEventResult,
         updateTeamScore,
         updateTeamMedals,
         addEventResult,

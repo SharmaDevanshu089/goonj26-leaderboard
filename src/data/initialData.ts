@@ -127,7 +127,10 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
       placements: [
         { batchId: '2023', points: 9700 },
         { batchId: '2022', points: 5800 },
-        { batchId: '2024', points: 4500 }
+        { batchId: '2024', points: 4500 },
+        { batchId: '2021', points: 4000 },
+        { batchId: '2026', points: 3700 },
+        { batchId: '2025', points: 3600 }
       ],
       status: 'completed'
     },
@@ -208,12 +211,10 @@ export const INITIAL_GOONJ_26: TournamentEdition = {
       category: 'cultural',
       winnerBatchId: 'b2026',
       runnerUpBatchId: 'b2021',
-      thirdPlaceBatchId: 'b2026',
-      pointsAwarded: 700,
+      pointsAwarded: 1000,
       placements: [
-        { batchId: '2026', points: 700 },
-        { batchId: '2021', points: 500 },
-        { batchId: '2026', points: 300 }
+        { batchId: '2026', points: 1000 },
+        { batchId: '2021', points: 500 }
       ],
       status: 'completed'
     }

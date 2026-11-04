@@ -11,7 +11,7 @@ import {
 
 export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DIVYA_A_HUGE_PARTY";
 
-const STORAGE_KEY = 'goonj26_noticeboard_v8';
+const STORAGE_KEY = 'goonj26_noticeboard_v9';
 const AUTH_STORAGE_KEY = 'goonj26_admin_auth';
 
 export interface SaveEventParams {

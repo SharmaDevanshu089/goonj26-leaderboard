@@ -10,8 +10,6 @@ interface EventBreakdownProps {
 export const EventBreakdown: React.FC<EventBreakdownProps> = ({ events }) => {
   if (!events || events.length === 0) return null;
 
-  const medalEmojis = ['🥇', '🥈', '🥉'];
-
   return (
     <div className="w-full max-w-lg sm:max-w-xl mx-auto px-3 sm:px-4 my-6">
       <div className="flex items-center justify-between mb-3 px-1">
@@ -45,12 +43,9 @@ export const EventBreakdown: React.FC<EventBreakdownProps> = ({ events }) => {
               <div className="space-y-1.5 text-sm">
                 {placements.map((p, idx) => (
                   <div key={idx} className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 text-center text-xs">{medalEmojis[idx] || `#${idx + 1}`}</span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {formatBatchName(p.batchId)}
-                      </span>
-                    </div>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">
+                      {formatBatchName(p.batchId)}
+                    </span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300 font-mono text-xs">
                       {p.points.toLocaleString()} pts
                     </span>

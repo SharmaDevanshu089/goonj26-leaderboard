@@ -4,12 +4,10 @@ import { INITIAL_GOONJ_26 } from '../data/initialData';
 import { HISTORICAL_EDITIONS } from '../data/historicalData';
 import { formatBatchName } from '../utils/formatters';
 
-export const DEFAULT_ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DEVANSHU_A_HUGE_PARTY";
-export const ADMIN_PASSWORD = DEFAULT_ADMIN_PASSWORD;
+export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DIVYA_A_HUGE_PARTY";
 
 const STORAGE_KEY = 'goonj26_noticeboard_v8';
 const AUTH_STORAGE_KEY = 'goonj26_admin_auth';
-const PWD_STORAGE_KEY = 'goonj26_admin_pwd';
 
 export interface SaveEventParams {
   id?: string;
@@ -29,7 +27,6 @@ interface LeaderboardContextType {
   isAdminLoggedIn: boolean;
   loginAdmin: (password: string) => boolean;
   logoutAdmin: () => void;
-  changeAdminPassword: (newPassword: string) => boolean;
   saveEventResult: (params: SaveEventParams) => void;
   deleteEventResult: (eventId: string) => void;
   updateTeamScore: (teamId: string, deltaOrExact: number, isDelta?: boolean) => void;
@@ -178,9 +175,6 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const [selectedEditionId, setSelectedEditionId] = useState<string>('goonj26');
   const [activeCategory, setActiveCategory] = useState<EventCategory>('all');
-  const [adminPassword, setAdminPassword] = useState<string>(() => {
-    return localStorage.getItem(PWD_STORAGE_KEY) || DEFAULT_ADMIN_PASSWORD;
-  });
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
@@ -210,7 +204,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const loginAdmin = (password: string): boolean => {
     const trimmed = password.trim();
-    if (trimmed === adminPassword || trimmed === DEFAULT_ADMIN_PASSWORD) {
+    if (trimmed === ADMIN_PASSWORD) {
       setIsAdminLoggedIn(true);
       localStorage.setItem(AUTH_STORAGE_KEY, 'true');
       return true;
@@ -221,14 +215,6 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const logoutAdmin = () => {
     setIsAdminLoggedIn(false);
     localStorage.removeItem(AUTH_STORAGE_KEY);
-  };
-
-  const changeAdminPassword = (newPassword: string): boolean => {
-    if (!newPassword || newPassword.trim().length === 0) return false;
-    const trimmed = newPassword.trim();
-    setAdminPassword(trimmed);
-    localStorage.setItem(PWD_STORAGE_KEY, trimmed);
-    return true;
   };
 
   const updateLastUpdatedTime = (customTime?: string) => {
@@ -447,7 +433,6 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isAdminLoggedIn,
         loginAdmin,
         logoutAdmin,
-        changeAdminPassword,
         saveEventResult,
         deleteEventResult,
         updateTeamScore,

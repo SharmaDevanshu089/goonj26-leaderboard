@@ -15,7 +15,6 @@ import {
   Trophy,
   Pencil,
   Trash2,
-  Shield,
   Eye,
   EyeOff,
   Search,
@@ -38,7 +37,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
-    changeAdminPassword,
     saveEventResult,
     deleteEventResult,
     updateTeamScore,
@@ -50,7 +48,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
   } = useLeaderboard();
 
   // Navigation tab in Admin
-  const [activeTab, setActiveTab] = useState<'events' | 'standings' | 'password' | 'backup'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'standings' | 'backup'>('events');
 
   // Auth form state
   const [passwordInput, setPasswordInput] = useState('');
@@ -73,12 +71,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
     '2026': ''
   });
   const [eventSearchQuery, setEventSearchQuery] = useState('');
-
-  // Password Change Form State
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -211,30 +203,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
       if (editingEventId === event.id) {
         resetEventForm();
       }
-    }
-  };
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError(null);
-
-    if (!newPassword || newPassword.length < 4) {
-      setPasswordError('New password must be at least 4 characters long.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match. Please re-enter.');
-      return;
-    }
-
-    const ok = changeAdminPassword(newPassword);
-    if (ok) {
-      setNewPassword('');
-      setConfirmPassword('');
-      showToast('Admin password successfully updated!');
-    } else {
-      setPasswordError('Failed to update password.');
     }
   };
 
@@ -410,18 +378,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
               >
                 <Trophy className="w-3.5 h-3.5" />
                 <span>Batch Standings</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('password')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-t-lg transition-colors border-t border-x ${
-                  activeTab === 'password'
-                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white -mb-px'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>Change Password</span>
               </button>
 
               <button
@@ -811,77 +767,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
                 </div>
               )}
 
-              {/* ================= TAB 3: CHANGE PASSWORD ================= */}
-              {activeTab === 'password' && (
-                <div className="max-w-md mx-auto py-4 space-y-6">
-                  <div className="text-center space-y-1">
-                    <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                      <Shield className="w-6 h-6" />
-                    </div>
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white pt-2">
-                      Change Admin Password
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Enter a new administrative password. It will take effect immediately for future logins.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                        New Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showNewPassword ? 'text' : 'password'}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Enter new password (min. 4 characters)..."
-                          required
-                          className="w-full px-3.5 py-2 text-sm rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800 dark:focus:ring-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                        Confirm New Password
-                      </label>
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter new password..."
-                        required
-                        className="w-full px-3.5 py-2 text-sm rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800 dark:focus:ring-white"
-                      />
-                    </div>
-
-                    {passwordError && (
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>{passwordError}</span>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm shadow transition-all"
-                    >
-                      Update Admin Password
-                    </button>
-                  </form>
-                </div>
-              )}
-
-              {/* ================= TAB 4: BACKUP & RESET ================= */}
+              {/* ================= TAB 3: BACKUP & RESET ================= */}
               {activeTab === 'backup' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   

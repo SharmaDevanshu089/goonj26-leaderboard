@@ -35,6 +35,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
   const {
     activeEdition,
     isAdminLoggedIn,
+    isCloudConnected,
+    refreshFromCloud,
     loginAdmin,
     logoutAdmin,
     saveEventResult,
@@ -251,8 +253,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 leading-none">
                 <span>Goonj '26 points editor</span>
                 {isAdminLoggedIn && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
-                    Live Session
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>{isCloudConnected ? 'Cloud Synced' : 'Syncing...'}</span>
                   </span>
                 )}
               </h3>

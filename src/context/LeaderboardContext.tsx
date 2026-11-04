@@ -1,8 +1,13 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { BatchTeam, EventResult, TournamentEdition, EventCategory, EventPlacement } from '../types/leaderboard';
 import { INITIAL_GOONJ_26 } from '../data/initialData';
 import { HISTORICAL_EDITIONS } from '../data/historicalData';
 import { formatBatchName } from '../utils/formatters';
+import {
+  fetchCloudLeaderboard,
+  saveCloudLeaderboard,
+  subscribeToCloudLeaderboard
+} from '../services/firebaseSync';
 
 export const ADMIN_PASSWORD = "I_AM_GONNA_GIVE_DIVYA_A_HUGE_PARTY";
 
@@ -25,6 +30,8 @@ interface LeaderboardContextType {
   setActiveCategory: (cat: EventCategory) => void;
   lastUpdated: string;
   isAdminLoggedIn: boolean;
+  isCloudConnected: boolean;
+  refreshFromCloud: () => Promise<void>;
   loginAdmin: (password: string) => boolean;
   logoutAdmin: () => void;
   saveEventResult: (params: SaveEventParams) => void;
@@ -178,6 +185,46 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
+
+  // Avoid saving to cloud if local state is just being updated by a cloud fetch
+  const isIncomingFromCloudRef = useRef(false);
+
+  // Synchronize with Firebase Realtime Database
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    // 1. Initial Cloud Fetch & Seed
+    fetchCloudLeaderboard().then(cloudData => {
+      if (cloudData && cloudData.goonj26 && Array.isArray(cloudData.goonj26.teams)) {
+        isIncomingFromCloudRef.current = true;
+        setEditions(cloudData);
+        setIsCloudConnected(true);
+      } else {
+        // Cloud is empty -> seed it with current seed data
+        const initialSeed = {
+          goonj26: INITIAL_GOONJ_26,
+          ...HISTORICAL_EDITIONS
+        };
+        saveCloudLeaderboard(initialSeed).then(ok => {
+          if (ok) setIsCloudConnected(true);
+        });
+      }
+    });
+
+    // 2. Realtime SSE listener & periodic mobile pull
+    unsubscribe = subscribeToCloudLeaderboard(remoteData => {
+      if (remoteData && remoteData.goonj26 && Array.isArray(remoteData.goonj26.teams)) {
+        isIncomingFromCloudRef.current = true;
+        setEditions(remoteData);
+        setIsCloudConnected(true);
+      }
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -187,6 +234,15 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Failed to save leaderboard data', e);
     }
   }, [editions]);
+
+  const refreshFromCloud = useCallback(async () => {
+    const cloudData = await fetchCloudLeaderboard();
+    if (cloudData && cloudData.goonj26) {
+      isIncomingFromCloudRef.current = true;
+      setEditions(cloudData);
+      setIsCloudConnected(true);
+    }
+  }, []);
 
   const activeEdition = editions[selectedEditionId] || editions.goonj26;
 
@@ -221,13 +277,15 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const timestamp = customTime || getFormattedCurrentTimestamp();
     setEditions(prev => {
       const cur = prev.goonj26;
-      return {
+      const next = {
         ...prev,
         goonj26: {
           ...cur,
           lastUpdated: timestamp
         }
       };
+      saveCloudLeaderboard(next);
+      return next;
     });
   };
 
@@ -277,7 +335,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const updatedTeams = recalculateEditionFromEvents(cur.teams, newEvents);
 
-      return {
+      const nextState = {
         ...prev,
         goonj26: {
           ...cur,
@@ -286,6 +344,11 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
           events: newEvents
         }
       };
+
+      // Broadcast immediately to Firebase Cloud Database for all admins & visitors
+      saveCloudLeaderboard(nextState);
+
+      return nextState;
     });
   };
 
@@ -296,7 +359,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const newEvents = cur.events.filter(ev => ev.id !== eventId);
       const updatedTeams = recalculateEditionFromEvents(cur.teams, newEvents);
 
-      return {
+      const nextState = {
         ...prev,
         goonj26: {
           ...cur,
@@ -305,6 +368,11 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
           events: newEvents
         }
       };
+
+      // Broadcast immediately to Firebase Cloud Database
+      saveCloudLeaderboard(nextState);
+
+      return nextState;
     });
   };
 
@@ -325,7 +393,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const ranked = calculateRanks(updatedTeams);
 
-      return {
+      const nextState = {
         ...prev,
         goonj26: {
           ...cur,
@@ -333,6 +401,9 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
           teams: ranked
         }
       };
+
+      saveCloudLeaderboard(nextState);
+      return nextState;
     });
   };
 
@@ -354,7 +425,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const ranked = calculateRanks(updatedTeams);
 
-      return {
+      const nextState = {
         ...prev,
         goonj26: {
           ...cur,
@@ -362,11 +433,13 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
           teams: ranked
         }
       };
+
+      saveCloudLeaderboard(nextState);
+      return nextState;
     });
   };
 
   const addEventResult = (eventData: Omit<EventResult, 'id'>) => {
-    // Adapter for backward compatibility
     const batchPoints: Record<string, number> = {};
     if (eventData.placements && eventData.placements.length > 0) {
       eventData.placements.forEach(p => {
@@ -394,6 +467,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...HISTORICAL_EDITIONS
     };
     setEditions(fresh);
+    saveCloudLeaderboard(fresh);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -412,6 +486,7 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const parsed = JSON.parse(jsonString);
       if (parsed.goonj26 && parsed.goonj26.teams) {
         setEditions(parsed);
+        saveCloudLeaderboard(parsed);
         return true;
       }
     } catch (e) {
@@ -431,6 +506,8 @@ export const LeaderboardProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setActiveCategory,
         lastUpdated: activeEdition.lastUpdated,
         isAdminLoggedIn,
+        isCloudConnected,
+        refreshFromCloud,
         loginAdmin,
         logoutAdmin,
         saveEventResult,
